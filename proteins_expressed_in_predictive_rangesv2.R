@@ -86,35 +86,6 @@ trc_table_2 = createRangeCols(blocks = blocks,
                               predictor = 'targetRNA_TPM', 
                               table = trc_table_2)
 
-# for (i in 1:length(blocks)) {
-#   block_low.num = blocks[i]
-#   colname = paste0('TRC_higher_than_', block_low.num)
-#   block_group.log = trc_table_2$TRC >= block_low.num
-#   if (i != length(blocks)) {
-#     block_high.num = blocks[i + 1]
-#     block_group2.log = trc_table_2$TRC < block_high.num
-#     block_group3.log = block_group.log + block_group2.log
-#     block_groupfinal.log = block_group3.log == 2
-#   } else {
-#     block_groupfinal.log = block_group.log
-#   }
-#   trc_table_2[, colname] = block_groupfinal.log
-# }
-# 
-# for (i in 1:length(blocks)) {
-#   block_low.num = blocks[i]
-#   colname = paste0('TPM_higher_than_', block_low.num)
-#   block_group.log = trc_table_2$targetRNA_TPM >= block_low.num
-#   if (i != length(blocks)) {
-#     block_high.num = blocks[i + 1]
-#     block_group2.log = trc_table_2$targetRNA_TPM < block_high.num
-#     block_group3.log = block_group.log + block_group2.log
-#     block_groupfinal.log = block_group3.log == 2
-#   } else {
-#     block_groupfinal.log = block_group.log
-#   }
-#   trc_table_2[, colname] = block_groupfinal.log
-# }
 
 #### Get the proteins related to those rows ####
 
@@ -213,8 +184,9 @@ tpm_n_prots.df = format.gg(data = tpm_n_prots, fill = 'targetRNA_TPM')
 n_prots = rbind(trc_n_prots.df, tpm_n_prots.df)
 n_prots$x = as.numeric(gsub('higher_than_', '', n_prots$x))
 
+setwd("/share/script/hecatos/juantxo/analysis_trc/proteins_expressed_in_predictive_ranges")
 png(filename = paste0('n_expr_prots_', timepoint_prot, 
-                      '_in_ranges_expr_', timepoint_pred))
+                      '_in_ranges_exsfgpr_', timepoint_pred, '.png'))
 
 if (non_expressed) {
   colnames(n_prots) = c('Number_of_untranslated_transcripts', 
@@ -235,3 +207,4 @@ if (non_expressed) {
 }
 
 dev.off()
+
