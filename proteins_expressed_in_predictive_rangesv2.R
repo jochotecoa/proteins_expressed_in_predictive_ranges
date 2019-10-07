@@ -62,10 +62,10 @@ createRangeCols <- function(blocks, predictor, table) {
   for (i in 1:length(blocks)) {
     block_low.num = blocks[i]
     colname = paste0(predictor, '_higher_than_', block_low.num)
-    block_group.log = trc_table_2$TRC >= block_low.num
+    block_group.log = trc_table_2[, predictor] >= block_low.num
     if (i != length(blocks)) {
       block_high.num = blocks[i + 1]
-      block_group2.log = trc_table_2$TRC < block_high.num
+      block_group2.log = trc_table_2[, predictor] < block_high.num
       block_group3.log = block_group.log + block_group2.log
       block_groupfinal.log = block_group3.log == 2
     } else {
@@ -76,36 +76,43 @@ createRangeCols <- function(blocks, predictor, table) {
   return(table)
 }
 
+trc_table_2 = createRangeCols(blocks = blocks, 
+                              predictor = 'TRC', 
+                              table = trc_table_2)
 
-for (i in 1:length(blocks)) {
-  block_low.num = blocks[i]
-  colname = paste0('TRC_higher_than_', block_low.num)
-  block_group.log = trc_table_2$TRC >= block_low.num
-  if (i != length(blocks)) {
-    block_high.num = blocks[i + 1]
-    block_group2.log = trc_table_2$TRC < block_high.num
-    block_group3.log = block_group.log + block_group2.log
-    block_groupfinal.log = block_group3.log == 2
-  } else {
-    block_groupfinal.log = block_group.log
-  }
-  trc_table_2[, colname] = block_groupfinal.log
-}
+trc_table_2 = createRangeCols(blocks = blocks, 
+                              predictor = 'targetRNA_TPM', 
+                              table = trc_table_2)
 
-for (i in 1:length(blocks)) {
-  block_low.num = blocks[i]
-  colname = paste0('TPM_higher_than_', block_low.num)
-  block_group.log = trc_table_2$targetRNA_TPM >= block_low.num
-  if (i != length(blocks)) {
-    block_high.num = blocks[i + 1]
-    block_group2.log = trc_table_2$targetRNA_TPM < block_high.num
-    block_group3.log = block_group.log + block_group2.log
-    block_groupfinal.log = block_group3.log == 2
-  } else {
-    block_groupfinal.log = block_group.log
-  }
-  trc_table_2[, colname] = block_groupfinal.log
-}
+# for (i in 1:length(blocks)) {
+#   block_low.num = blocks[i]
+#   colname = paste0('TRC_higher_than_', block_low.num)
+#   block_group.log = trc_table_2$TRC >= block_low.num
+#   if (i != length(blocks)) {
+#     block_high.num = blocks[i + 1]
+#     block_group2.log = trc_table_2$TRC < block_high.num
+#     block_group3.log = block_group.log + block_group2.log
+#     block_groupfinal.log = block_group3.log == 2
+#   } else {
+#     block_groupfinal.log = block_group.log
+#   }
+#   trc_table_2[, colname] = block_groupfinal.log
+# }
+# 
+# for (i in 1:length(blocks)) {
+#   block_low.num = blocks[i]
+#   colname = paste0('TPM_higher_than_', block_low.num)
+#   block_group.log = trc_table_2$targetRNA_TPM >= block_low.num
+#   if (i != length(blocks)) {
+#     block_high.num = blocks[i + 1]
+#     block_group2.log = trc_table_2$targetRNA_TPM < block_high.num
+#     block_group3.log = block_group.log + block_group2.log
+#     block_groupfinal.log = block_group3.log == 2
+#   } else {
+#     block_groupfinal.log = block_group.log
+#   }
+#   trc_table_2[, colname] = block_groupfinal.log
+# }
 
 #### Get the proteins related to those rows ####
 
