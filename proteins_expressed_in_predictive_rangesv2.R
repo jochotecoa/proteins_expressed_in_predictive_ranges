@@ -14,12 +14,12 @@ format.gg = function(data, fill){
 prot_dupl_filt = T
 enst_dupl_filt = T
 normalize = F
-non_expressed = T
+non_expressed = F
 
 #### Get an example TRC sample file ####
 
 setwd('/share/analysis/hecatos/juantxo/Score/output/Output_Run_mrna_SEPT2019/')
-setwd('V3/output/TRCscore/')
+setwd('V3/output/UNTR/TRCscore/')
 
 files = list.files(pattern = 'UNTR')
 trc_table = read.table(file = files[1], stringsAsFactors = F)
@@ -153,7 +153,7 @@ trc_table_4$UNTR_The_002_1_expr[is.na(trc_table_4$UNTR_The_002_1_expr)] = F
 #### Calculate how many proteins are expressed in those ranges ####
 tpm_n_prots = NULL
 i = 1
-for (col in grep('TPM_higher', colnames(trc_table_4))) {
+for (col in grep('targetRNA_TPM_higher', colnames(trc_table_4))) {
   
   tpmgroup = trc_table_4[trc_table_4[, col], ]
   if (non_expressed) {
@@ -172,7 +172,7 @@ for (col in grep('TPM_higher', colnames(trc_table_4))) {
   }
   tpmgroup_length = length(tpmgroup_ids)
   tpm_n_prots = c(tpm_n_prots, tpmgroup_length)
-  names(tpm_n_prots)[length(tpm_n_prots)] = gsub('TPM_', '', 
+  names(tpm_n_prots)[length(tpm_n_prots)] = gsub('targetRNA_TPM_', '', 
                                                  colnames(trc_table_4)[col])
   i = i + 1
 }
@@ -205,7 +205,7 @@ for (col in grep('TRC_higher', colnames(trc_table_4))) {
 
 #### Plot data ####
 trc_n_prots.df = format.gg(data = trc_n_prots, fill = 'TRC')
-tpm_n_prots.df = format.gg(data = tpm_n_prots, fill = 'TPM')
+tpm_n_prots.df = format.gg(data = tpm_n_prots, fill = 'targetRNA_TPM')
 
 n_prots = rbind(trc_n_prots.df, tpm_n_prots.df)
 n_prots$x = as.numeric(gsub('higher_than_', '', n_prots$x))
