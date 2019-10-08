@@ -2,21 +2,41 @@ library('biomaRt')
 library(ggplot2)
 
 #### Functions ####
+source(file = '/share/script/hecatos/juantxo/analysis_trc/functions.R')
 format.gg = function(data, fill){
+  # Formats a table ready to be ggplotted
   data = as.data.frame(data)
   colnames(data) = 'values'
   data$fill = fill
   data$x = rownames(data)
   return(data)
 }
+createRangeCols <- function(blocks, predictor, table) {
+  for (i in 1:length(blocks)) {
+    block_low.num = blocks[i]
+    colname = paste0(predictor, '_higher_than_', block_low.num)
+    block_group.log = table[, predictor] >= block_low.num
+    if (i != length(blocks)) {
+      block_high.num = blocks[i + 1]
+      block_group2.log = table[, predictor] < block_high.num
+      block_group3.log = block_group.log + block_group2.log
+      block_groupfinal.log = block_group3.log == 2
+    } else {
+      block_groupfinal.log = block_group.log
+    }
+    table[, colname] = block_groupfinal.log
+  }
+  return(table)
+}
+
 #### Parameters ####
 
 prot_dupl_filt = T
 enst_dupl_filt = T
 normalize = F
 non_expressed = F
-timepoint_prot = 'UNTR_The_008_1'
-timepoint_pred = 'UNTR_008_1'
+timepoint_prot = 'UNTR_The_072_1'
+timepoint_pred = 'UNTR_002_1'
 
 #### Get an example TRC sample file ####
 
@@ -50,6 +70,7 @@ trc_table_transcript_biotype = getBM(attributes = c('ensembl_transcript_id',
 trc_table_2 = merge.data.frame(trc_table, trc_table_transcript_biotype, 
                                by = 'ensembl_transcript_id')
 trc_table_2 = trc_table_2[trc_table_2$transcript_biotype == 'protein_coding', ]
+trc_table_2 = transcrToGene(trc_table_2, T)
 
 # Check point
 if (length(table(trc_table_2$transcript_biotype)) > 1) {
@@ -59,24 +80,6 @@ if (length(table(trc_table_2$transcript_biotype)) > 1) {
 #### Classify rows based on their TRC/TPM value ####
 
 blocks = quantile(trc_table_2$TRC, seq(0,0.9,0.05))
-
-createRangeCols <- function(blocks, predictor, table) {
-  for (i in 1:length(blocks)) {
-    block_low.num = blocks[i]
-    colname = paste0(predictor, '_higher_than_', block_low.num)
-    block_group.log = trc_table_2[, predictor] >= block_low.num
-    if (i != length(blocks)) {
-      block_high.num = blocks[i + 1]
-      block_group2.log = trc_table_2[, predictor] < block_high.num
-      block_group3.log = block_group.log + block_group2.log
-      block_groupfinal.log = block_group3.log == 2
-    } else {
-      block_groupfinal.log = block_group.log
-    }
-    table[, colname] = block_groupfinal.log
-  }
-  return(table)
-}
 
 trc_table_2 = createRangeCols(blocks = blocks, 
                               predictor = 'TRC', 
@@ -89,10 +92,10 @@ trc_table_2 = createRangeCols(blocks = blocks,
 
 #### Get the proteins related to those rows ####
 
-enst_unip = getBM(attributes = c('ensembl_transcript_id',
+enst_unip = getBM(attributes = c('ensembl_gene_id',
                                  'uniprot_gn'),
-      filters = 'ensembl_transcript_id',
-      values = trc_table_2$ensembl_transcript_id, 
+      filters = 'ensembl_gene_id',
+      values = trc_table_2$ensembl_gene_id, 
       mart = mart.human)
 
 # dupl = duplicated(enst_unip$ensembl_transcript_id)
@@ -100,7 +103,7 @@ enst_unip = getBM(attributes = c('ensembl_transcript_id',
 # enst_unip2 = enst_unip[!(enst_unip$ensembl_transcript_id %in% dupl2), ]
 
 trc_table_3 = merge.data.frame(trc_table_2, enst_unip, 
-                               by = 'ensembl_transcript_id')
+                               by = 'ensembl_gene_id')
 
 #### Get the protein expression values ####
 setwd('/ngs-data/data/hecatos/Cardiac/Con_UNTR/Protein/')
@@ -137,7 +140,7 @@ for (col in grep('targetRNA_TPM_higher', colnames(trc_table_4))) {
   }
   # Filter out the transcripts that are associated to > 1 protein 
   if (enst_dupl_filt) { 
-    tpmgroup = tpmgroup[!duplicated(tpmgroup$ensembl_transcript_id), ]
+    tpmgroup = tpmgroup[!duplicated(tpmgroup$ensembl_gene_id), ]
   }
   if (prot_dupl_filt) {
     tpmgroup_ids = unique(tpmgroup$uniprot_gn)
@@ -162,7 +165,7 @@ for (col in grep('TRC_higher', colnames(trc_table_4))) {
   }
   # Filter out the transcripts that are associated to > 1 protein 
   if (enst_dupl_filt) { 
-    trcgroup = trcgroup[!duplicated(trcgroup$ensembl_transcript_id), ]
+    trcgroup = trcgroup[!duplicated(trcgroup$ensembl_gene_id), ]
   }
   # A protein expressed by 2 transcripts is not 2 proteins
   if (prot_dupl_filt) {
@@ -184,9 +187,10 @@ tpm_n_prots.df = format.gg(data = tpm_n_prots, fill = 'targetRNA_TPM')
 n_prots = rbind(trc_n_prots.df, tpm_n_prots.df)
 n_prots$x = as.numeric(gsub('higher_than_', '', n_prots$x))
 
-setwd("/share/script/hecatos/juantxo/analysis_trc/proteins_expressed_in_predictive_ranges")
-png(filename = paste0('n_expr_prots_', timepoint_prot, 
-                      '_in_ranges_exsfgpr_', timepoint_pred, '.png'))
+setwd("/share/script/hecatos/juantxo/analysis_trc/")
+setwd('proteins_expressed_in_predictive_ranges/plots')
+# png(filename = paste0('n_expr_prots_', timepoint_prot, 
+#                       '_in_ranges_exsfgpr_', timepoint_pred, '.png'))
 
 if (non_expressed) {
   colnames(n_prots) = c('Number_of_untranslated_transcripts', 
@@ -206,5 +210,5 @@ if (non_expressed) {
   
 }
 
-dev.off()
+# dev.off()
 
