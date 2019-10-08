@@ -243,6 +243,15 @@ for (timepoint_prot in timepoint_prots) {
   
 }
 
+rownames(change_high) = substr(x = rownames(change_high), 15, 17)
+rownames(change_low) = substr(x = rownames(change_low), 15, 17)
+
 par(mfrow = c(1,2))
-barplot(abs(change_high$diff_low), names.arg = rownames(change_high), angle = 45)
-barplot(abs(change_low$diff), names.arg = rownames(change_low), angle = 45)
+barplot(change_high$diff_low, names.arg = rownames(change_high), 
+        angle = 45, main = 'High end distribution differences', 
+        xlab = 'Protein timepoint', 
+        ylab = 'Difference in number of expressed proteins')
+barplot(change_low$diff, names.arg = rownames(change_low), 
+        angle = 45, main = 'Low end distribution differences', 
+        xlab = 'Protein timepoint', 
+        ylab = 'Difference in number of expressed proteins')
