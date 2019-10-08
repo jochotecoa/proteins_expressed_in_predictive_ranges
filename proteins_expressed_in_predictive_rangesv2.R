@@ -35,8 +35,15 @@ prot_dupl_filt = T
 enst_dupl_filt = T
 normalize = F
 non_expressed = F
-timepoint_prot = 'UNTR_The_072_1'
+timepoint_prots = c('UNTR_The_002_1', 'UNTR_The_008_1', 'UNTR_The_024_1', 
+                   'UNTR_The_072_1', 'UNTR_The_168_1', 'UNTR_The_240_1', 
+                   'UNTR_The_336_1')
 timepoint_pred = 'UNTR_002_1'
+
+#### Pre-defined parameters ####
+
+change_low = NULL
+change_high = NULL
 
 #### Get an example TRC sample file ####
 
@@ -79,7 +86,7 @@ if (length(table(trc_table_2$transcript_biotype)) > 1) {
 
 #### Classify rows based on their TRC/TPM value ####
 
-blocks = quantile(trc_table_2$TRC, seq(0,0.9,0.05))
+blocks = quantile(trc_table_2$targetRNA_TPM, seq(0,0.95,0.05))
 
 trc_table_2 = createRangeCols(blocks = blocks, 
                               predictor = 'TRC', 
@@ -105,6 +112,7 @@ enst_unip = getBM(attributes = c('ensembl_gene_id',
 trc_table_3 = merge.data.frame(trc_table_2, enst_unip, 
                                by = 'ensembl_gene_id')
 
+
 #### Get the protein expression values ####
 setwd('/ngs-data/data/hecatos/Cardiac/Con_UNTR/Protein/')
 setwd('Proteomics_Analyses_Cardiac_UNTR_GeneData/')
@@ -117,98 +125,124 @@ protein_table = protein_table[!grepl(protein_table$Row.Names, pattern = ':'), ]
 names = strsplit(as.character(protein_table$Row.Names), '\\|')
 names = as.character(lapply(names, '[', 2))
 protein_table$uniprot_gn = names
-# We only need our sample
-protein_table_0021 = protein_table[, c(timepoint_prot, 'uniprot_gn')]
-# Here, it is only all.x instead of all cause we don't want the proteins that 
-# are not in our table of study
-trc_table_4 = merge.data.frame(x = trc_table_3, y = protein_table_0021, 
-                               by = 'uniprot_gn', all.x = T)
-tp_expr_col = paste0(timepoint_prot, '_expressed')
-trc_table_4[, tp_expr_col] = trc_table_4[, timepoint_prot] > 0
-trc_table_4[, tp_expr_col][is.na(trc_table_4[, tp_expr_col])] = F
-
-#### Calculate how many proteins are expressed in those ranges ####
-tpm_n_prots = NULL
-i = 1
-for (col in grep('targetRNA_TPM_higher', colnames(trc_table_4))) {
+for (timepoint_prot in timepoint_prots) {
+  # We only need our sample
+  protein_table_0021 = protein_table[, c(timepoint_prot, 'uniprot_gn')]
+  # Here, it is only all.x instead of all cause we don't want the proteins that 
+  # are not in our table of study
+  trc_table_4 = merge.data.frame(x = trc_table_3, y = protein_table_0021, 
+                                 by = 'uniprot_gn', all.x = T)
+  tp_expr_col = paste0(timepoint_prot, '_expressed')
+  trc_table_4[, tp_expr_col] = trc_table_4[, timepoint_prot] > 0
+  trc_table_4[, tp_expr_col][is.na(trc_table_4[, tp_expr_col])] = F
   
-  tpmgroup = trc_table_4[trc_table_4[, col], ]
-  if (non_expressed) {
-    tpmgroup = tpmgroup[!tpmgroup[, tp_expr_col], ]
-  } else {
-    tpmgroup = tpmgroup[tpmgroup[, tp_expr_col], ]
+  #### Calculate how many proteins are expressed in those ranges ####
+  tpm_n_prots = NULL
+  i = 1
+  for (col in grep('targetRNA_TPM_higher', colnames(trc_table_4))) {
+    
+    tpmgroup = trc_table_4[trc_table_4[, col], ]
+    if (non_expressed) {
+      tpmgroup = tpmgroup[!tpmgroup[, tp_expr_col], ]
+    } else {
+      tpmgroup = tpmgroup[tpmgroup[, tp_expr_col], ]
+    }
+    # Filter out the transcripts that are associated to > 1 protein 
+    if (enst_dupl_filt) { 
+      tpmgroup = tpmgroup[!duplicated(tpmgroup$ensembl_gene_id), ]
+    }
+    if (prot_dupl_filt) {
+      tpmgroup_ids = unique(tpmgroup$uniprot_gn)
+    } else {
+      tpmgroup_ids = tpmgroup$uniprot_gn
+    }
+    tpmgroup_length = length(tpmgroup_ids)
+    tpm_n_prots = c(tpm_n_prots, tpmgroup_length)
+    names(tpm_n_prots)[length(tpm_n_prots)] = gsub('targetRNA_TPM_', '', 
+                                                   colnames(trc_table_4)[col])
+    i = i + 1
   }
-  # Filter out the transcripts that are associated to > 1 protein 
-  if (enst_dupl_filt) { 
-    tpmgroup = tpmgroup[!duplicated(tpmgroup$ensembl_gene_id), ]
+  
+  trc_n_prots = NULL
+  i = 1
+  for (col in grep('TRC_higher', colnames(trc_table_4))) {
+    trcgroup = trc_table_4[trc_table_4[, col], ] # TRC in this range
+    if (non_expressed) {
+      trcgroup = trcgroup[!trcgroup[, tp_expr_col], ]
+    } else {
+      trcgroup = trcgroup[trcgroup[, tp_expr_col], ]
+    }
+    # Filter out the transcripts that are associated to > 1 protein 
+    if (enst_dupl_filt) { 
+      trcgroup = trcgroup[!duplicated(trcgroup$ensembl_gene_id), ]
+    }
+    # A protein expressed by 2 transcripts is not 2 proteins
+    if (prot_dupl_filt) {
+      trcgroup_ids = unique(trcgroup$uniprot_gn)
+    } else {
+      trcgroup_ids = trcgroup$uniprot_gn
+    }
+    trcgroup_length = length(trcgroup_ids)
+    trc_n_prots = c(trc_n_prots, trcgroup_length)
+    names(trc_n_prots)[length(trc_n_prots)] = gsub('TRC_', '', 
+                                                   colnames(trc_table_4)[col])
+    i = i + 1
   }
-  if (prot_dupl_filt) {
-    tpmgroup_ids = unique(tpmgroup$uniprot_gn)
-  } else {
-    tpmgroup_ids = tpmgroup$uniprot_gn
-  }
-  tpmgroup_length = length(tpmgroup_ids)
-  tpm_n_prots = c(tpm_n_prots, tpmgroup_length)
-  names(tpm_n_prots)[length(tpm_n_prots)] = gsub('targetRNA_TPM_', '', 
-                                                 colnames(trc_table_4)[col])
-  i = i + 1
+  
+  #### Plot data ####
+  trc_n_prots.df = format.gg(data = trc_n_prots, fill = 'TRC')
+  tpm_n_prots.df = format.gg(data = tpm_n_prots, fill = 'targetRNA_TPM')
+  
+  n_prots = rbind(trc_n_prots.df, tpm_n_prots.df)
+  n_prots$x = as.numeric(gsub('higher_than_', '', n_prots$x))
+  
+  
+  
+  change_low_tmp = data.frame(TRC = sum(n_prots$values[1:2]))
+  rownames(change_low_tmp)[nrow(change_low_tmp)] = paste0('prot_', timepoint_prot, 
+                                                          '__gene_', timepoint_pred)
+  change_low_tmp$targetRNA_TPM = sum(n_prots$values[21:22])
+  change_low_tmp$diff = change_low_tmp[1,1] - change_low_tmp[1,2]
+  change_low_tmp$lower_than = n_prots$x[2]
+  change_low = rbind(change_low, change_low_tmp)
+  
+  change_high_tmp = data.frame(TRC = sum(n_prots$values[19:20]))
+  rownames(change_high_tmp)[nrow(change_high_tmp)] = paste0('prot_', timepoint_prot, 
+                                                            '__gene_', timepoint_pred)
+  change_high_tmp$targetRNA_TPM = sum(n_prots$values[39:40])
+  change_high_tmp$diff_low = change_high_tmp[1,1] - change_high_tmp[1,2]
+  change_high_tmp$higher_than = n_prots$x[19]
+  change_high = rbind(change_high, change_high_tmp)
+  
+  
+  setwd("/share/script/hecatos/juantxo/analysis_trc/")
+  setwd('proteins_expressed_in_predictive_ranges/plots')
+  # png(filename = paste0('n_expr_prots_', timepoint_prot, 
+  #                       '_in_ranges_exsfgpr_', timepoint_pred, '.png'))
+  
+  # if (non_expressed) {
+  #   colnames(n_prots) = c('Number_of_untranslated_transcripts', 
+  #                         'Predictor_type', 'Ranges_of_expression')
+  #   ggplot(n_prots, aes(y = Number_of_untranslated_transcripts, 
+  #                       x = Ranges_of_expression, fill = Predictor_type)) + 
+  #     geom_bar(stat = "identity", position = "dodge") + 
+  #     scale_fill_brewer(palette = "Set1")
+  #   
+  # } else {
+  #   colnames(n_prots) = c('Number_of_expressed_proteins', 
+  #                         'Predictor_type', 'Ranges_of_expression')
+  #   ggplot(n_prots, aes(y = Number_of_expressed_proteins, 
+  #                       x = Ranges_of_expression, fill = Predictor_type)) + 
+  #     geom_bar(stat = "identity", position = "dodge") + 
+  #     scale_fill_brewer(palette = "Set1")
+  #   
+  # }
+  # 
+  # # dev.off()
+  # 
+  
 }
 
-trc_n_prots = NULL
-i = 1
-for (col in grep('TRC_higher', colnames(trc_table_4))) {
-  trcgroup = trc_table_4[trc_table_4[, col], ] # TRC in this range
-  if (non_expressed) {
-    trcgroup = trcgroup[!trcgroup[, tp_expr_col], ]
-  } else {
-    trcgroup = trcgroup[trcgroup[, tp_expr_col], ]
-  }
-  # Filter out the transcripts that are associated to > 1 protein 
-  if (enst_dupl_filt) { 
-    trcgroup = trcgroup[!duplicated(trcgroup$ensembl_gene_id), ]
-  }
-  # A protein expressed by 2 transcripts is not 2 proteins
-  if (prot_dupl_filt) {
-    trcgroup_ids = unique(trcgroup$uniprot_gn)
-  } else {
-    trcgroup_ids = trcgroup$uniprot_gn
-  }
-  trcgroup_length = length(trcgroup_ids)
-  trc_n_prots = c(trc_n_prots, trcgroup_length)
-  names(trc_n_prots)[length(trc_n_prots)] = gsub('TRC_', '', 
-                                                 colnames(trc_table_4)[col])
-  i = i + 1
-}
-
-#### Plot data ####
-trc_n_prots.df = format.gg(data = trc_n_prots, fill = 'TRC')
-tpm_n_prots.df = format.gg(data = tpm_n_prots, fill = 'targetRNA_TPM')
-
-n_prots = rbind(trc_n_prots.df, tpm_n_prots.df)
-n_prots$x = as.numeric(gsub('higher_than_', '', n_prots$x))
-
-setwd("/share/script/hecatos/juantxo/analysis_trc/")
-setwd('proteins_expressed_in_predictive_ranges/plots')
-# png(filename = paste0('n_expr_prots_', timepoint_prot, 
-#                       '_in_ranges_exsfgpr_', timepoint_pred, '.png'))
-
-if (non_expressed) {
-  colnames(n_prots) = c('Number_of_untranslated_transcripts', 
-                        'Predictor_type', 'Ranges_of_expression')
-  ggplot(n_prots, aes(y = Number_of_untranslated_transcripts, 
-                      x = Ranges_of_expression, fill = Predictor_type)) + 
-    geom_bar(stat = "identity", position = "dodge") + 
-    scale_fill_brewer(palette = "Set1")
-  
-} else {
-  colnames(n_prots) = c('Number_of_expressed_proteins', 
-                        'Predictor_type', 'Ranges_of_expression')
-  ggplot(n_prots, aes(y = Number_of_expressed_proteins, 
-                      x = Ranges_of_expression, fill = Predictor_type)) + 
-    geom_bar(stat = "identity", position = "dodge") + 
-    scale_fill_brewer(palette = "Set1")
-  
-}
-
-# dev.off()
-
+par(mfrow = c(1,2))
+barplot(abs(change_high$diff_low), names.arg = rownames(change_high), angle = 45)
+barplot(abs(change_low$diff), names.arg = rownames(change_low), angle = 45)
