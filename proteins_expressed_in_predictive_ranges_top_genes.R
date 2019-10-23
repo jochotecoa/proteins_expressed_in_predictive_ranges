@@ -52,7 +52,7 @@ setwd('/share/analysis/hecatos/juantxo/Score/output/Output_Run_mrna_SEPT2019/')
 setwd('V3/output/UNTR/TRCscore/')
 
 files = list.files(pattern = timepoint_pred)
-trc_table = read.table(file = files[1], stringsAsFactors = F)
+trc_table = read.table(file = files[1], stringsAsFactors = F) 
 trc_table$ensembl_transcript_id = rownames(trc_table)
 # Normalize data
 if (normalize) {
@@ -76,9 +76,9 @@ trc_table_transcript_biotype = getBM(attributes = c('ensembl_transcript_id',
                            mart = mart.human)
 
 trc_table_2 = merge.data.frame(trc_table, trc_table_transcript_biotype, 
-                               by = 'ensembl_transcript_id')
-trc_table_2 = trc_table_2[trc_table_2$transcript_biotype == 'protein_coding', ]
-trc_table_2 = transcrToGene(trc_table_2, T)
+                               by = 'ensembl_transcript_id') %>%
+  filter(transcript_biotype == 'protein_coding') %>%
+  transcrToGene(aggregate = T)
 
 # Check point
 if (length(table(trc_table_2$transcript_biotype)) > 1) {
@@ -89,30 +89,20 @@ if (length(table(trc_table_2$transcript_biotype)) > 1) {
 
 blocks = quantile(trc_table_2$targetRNA_TPM, seq(0,0.95,0.05))
 
-trc_table_2 = createRangeCols(blocks = blocks, 
-                              predictor = 'TRC', 
-                              table = trc_table_2)
-
-trc_table_2 = createRangeCols(blocks = blocks, 
-                              predictor = 'targetRNA_TPM', 
-                              table = trc_table_2)
+trc_table_2 = trc_table_2 %>%
+  createRangeCols(blocks = blocks, predictor = 'TRC', table = .) %>% 
+  createRangeCols(blocks = blocks, predictor = 'targetRNA_TPM', table = .)
 
 
 #### Get the proteins related to those rows ####
 
 enst_unip = getBM(attributes = c('ensembl_gene_id',
                                  'uniprot_gn'),
-      filters = 'ensembl_gene_id',
-      values = trc_table_2$ensembl_gene_id, 
-      mart = mart.human)
+                  filters = 'ensembl_gene_id',
+                  values = trc_table_2$ensembl_gene_id, 
+                  mart = mart.human)
 
-# dupl = duplicated(enst_unip$ensembl_transcript_id)
-# dupl2 = enst_unip$ensembl_transcript_id[dupl]
-# enst_unip2 = enst_unip[!(enst_unip$ensembl_transcript_id %in% dupl2), ]
-
-trc_table_3 = merge.data.frame(trc_table_2, enst_unip, 
-                               by = 'ensembl_gene_id')
-
+trc_table_3 = merge.data.frame(trc_table_2, enst_unip, by = 'ensembl_gene_id')
 
 #### Get the protein expression values ####
 setwd('/ngs-data/data/hecatos/Cardiac/Con_UNTR/Protein/')
@@ -122,10 +112,14 @@ protein_table = read.table('Hecatos_Cardiac_Px_Untreated_pre-processed_renamed.t
                            header = T, sep = '\t')
 
 # As always, format the protein names correctly
-protein_table = protein_table[!grepl(protein_table$Row.Names, pattern = ':'), ]
-names = strsplit(as.character(protein_table$Row.Names), '\\|')
-names = as.character(lapply(names, '[', 2))
-protein_table$uniprot_gn = names
+protein_table = protein_table %>% as_tibble() %>% 
+  filter(!grepl(':', x = .$Row.Names))
+protein_table$uniprot_gn = protein_table$Row.Names %>%
+  as.character() %>% 
+  strsplit('\\|') %>%
+  lapply('[', 2) %>%
+  as.character()
+
 for (timepoint_prot in timepoint_prots) {
   # We only need our sample
   protein_table_0021 = protein_table[, c(timepoint_prot, 'uniprot_gn')]
@@ -134,100 +128,64 @@ for (timepoint_prot in timepoint_prots) {
   trc_table_4 = merge.data.frame(x = trc_table_3, y = protein_table_0021, 
                                  by = 'uniprot_gn', all.x = T)
   tp_expr_col = paste0(timepoint_prot, '_expressed')
-  trc_table_4[, tp_expr_col] = trc_table_4[, timepoint_prot] > 0
+  
+  trc_table_4[, tp_expr_col] = trc_table_4[, timepoint_prot] > 0 
   trc_table_4[, tp_expr_col][is.na(trc_table_4[, tp_expr_col])] = F
   
-  #### Calculate how many proteins are expressed in those ranges ####
-  tpm_n_prots = NULL
-  i = 1
-  for (col in grep('targetRNA_TPM_higher', colnames(trc_table_4))) {
-    
-    tpmgroup = trc_table_4[trc_table_4[, col], ]
-    if (non_expressed) {
-      tpmgroup = tpmgroup[!tpmgroup[, tp_expr_col], ]
-    } else {
-      tpmgroup = tpmgroup[tpmgroup[, tp_expr_col], ]
-    }
-    # Filter out the transcripts that are associated to > 1 protein 
-    if (enst_dupl_filt) { 
-      tpmgroup = tpmgroup[!duplicated(tpmgroup$ensembl_gene_id), ]
-    }
-    if (prot_dupl_filt) {
-      tpmgroup_ids = unique(tpmgroup$uniprot_gn)
-    } else {
-      tpmgroup_ids = tpmgroup$uniprot_gn
-    }
-    tpmgroup_length = length(tpmgroup_ids)
-    tpm_n_prots = c(tpm_n_prots, tpmgroup_length)
-    names(tpm_n_prots)[length(tpm_n_prots)] = gsub('targetRNA_TPM_', '', 
-                                                   colnames(trc_table_4)[col])
-    i = i + 1
-  }
   
-  trc_n_prots = NULL
-  i = 1
-  for (col in grep('TRC_higher', colnames(trc_table_4))) {
-    trcgroup = trc_table_4[trc_table_4[, col], ] # TRC in this range
-    if (non_expressed) {
-      trcgroup = trcgroup[!trcgroup[, tp_expr_col], ]
-    } else {
-      trcgroup = trcgroup[trcgroup[, tp_expr_col], ]
-    }
-    # Filter out the transcripts that are associated to > 1 protein 
-    if (enst_dupl_filt) { 
-      trcgroup = trcgroup[!duplicated(trcgroup$ensembl_gene_id), ]
-    }
-    # A protein expressed by 2 transcripts is not 2 proteins
-    if (prot_dupl_filt) {
-      trcgroup_ids = unique(trcgroup$uniprot_gn)
-    } else {
-      trcgroup_ids = trcgroup$uniprot_gn
-    }
-    trcgroup_length = length(trcgroup_ids)
-    trc_n_prots = c(trc_n_prots, trcgroup_length)
-    names(trc_n_prots)[length(trc_n_prots)] = gsub('TRC_', '', 
-                                                   colnames(trc_table_4)[col])
-    i = i + 1
-  }
-  
-  #### Plot data ####
-  trc_n_prots.df = format.gg(data = trc_n_prots, fill = 'TRC')
-  tpm_n_prots.df = format.gg(data = tpm_n_prots, fill = 'targetRNA_TPM')
-  
-  n_prots = rbind(trc_n_prots.df, tpm_n_prots.df)
-  n_prots$x = as.numeric(gsub('higher_than_', '', n_prots$x))
-  
-  
-  
-  change_low_tmp = data.frame(TRC = sum(n_prots$values[1:2]))
-  rownames(change_low_tmp)[nrow(change_low_tmp)] = paste0('prot_', timepoint_prot, 
-                                                          '__gene_', timepoint_pred)
-  change_low_tmp$targetRNA_TPM = sum(n_prots$values[21:22])
-  change_low_tmp$diff = change_low_tmp[1,1] - change_low_tmp[1,2]
-  change_low_tmp$lower_than = n_prots$x[2]
-  change_low = rbind(change_low, change_low_tmp)
-  
-  %>%
-  change_high_tmp_tpm = order(trc_table_4$targetRNA_TPM, decreasing = T)
-  change_high_tmp_tpm = change_high_tmp_tpm %>% 
+  change_high_tmp_tpm = order(trc_table_4$targetRNA_TPM, decreasing = T) %>%
     .[1:100] %>%
-    trc_table_4$UNTR_The_002_1_expressed[.] %>%
+    trc_table_4[., tp_expr_col] %>%
     sum()
 
+  change_low_tmp_tpm = order(trc_table_4$targetRNA_TPM, decreasing = F) %>%
+    .[1:100] %>%
+    trc_table_4[, tp_expr_col][.] %>%
+    sum()
   
+  change_high_tmp_trc = order(trc_table_4$TRC, decreasing = T) %>%
+    .[1:100] %>%
+    trc_table_4[, tp_expr_col][.] %>%
+    sum()
   
+  change_low_tmp_trc = order(trc_table_4$TRC, decreasing = F) %>%
+    .[1:100] %>%
+    trc_table_4[, tp_expr_col][.] %>%
+    sum()
   
+  change_low_tmp = change_low_tmp_trc - change_low_tmp_tpm
+  change_high_tmp = change_high_tmp_trc - change_high_tmp_tpm
   
-  setwd("/share/script/hecatos/juantxo/analysis_trc/")
-  setwd('proteins_expressed_in_predictive_ranges/plots')
+  change_low = change_low %>% 
+    rbind(c(change_low_tmp, timepoint_prot))
+  colnames(change_low) = c('TRC_TPM_expressed_proteins_difference',
+                           'timepoint_protein')
+  
+  change_high = change_high %>%
+    rbind(c(change_high_tmp, timepoint_prot))
+  colnames(change_high) = c('TRC_TPM_expressed_proteins_difference',
+                           'timepoint_protein')
   
 }
 
-rownames(change_high) = substr(x = rownames(change_high), 15, 17)
-rownames(change_low) = substr(x = rownames(change_low), 15, 17)
+# rownames(change_high) = substr(x = rownames(change_high), 15, 17)
+# rownames(change_low) = substr(x = rownames(change_low), 15, 17)
+
+setwd("/share/script/hecatos/juantxo/analysis_trc/")
+setwd('proteins_expressed_in_predictive_ranges/plots')
+
+change_high = as.data.frame(change_high, stringsAsFactors = F)
+colnames(change_high) = c('TRC_TPM_expressed_proteins_difference',
+                          'timepoint_protein')
+change_high[, 1] = as.numeric(change_high[, 1])
+
+change_low = as.data.frame(change_low, stringsAsFactors = F)
+colnames(change_low) = c('TRC_TPM_expressed_proteins_difference',
+                          'timepoint_protein')
+change_low[, 1] = as.numeric(change_low[, 1])
 
 par(mfrow = c(1,2))
-barplot(change_high$diff_low, names.arg = rownames(change_high), 
+barplot(change_high[, 1], names.arg = change_high[, 2], 
         angle = 45, main = 'High end distribution differences', 
         xlab = 'Protein timepoint', 
         ylab = 'Difference in number of expressed proteins')
