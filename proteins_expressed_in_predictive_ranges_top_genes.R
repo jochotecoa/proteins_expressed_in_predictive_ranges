@@ -120,6 +120,8 @@ protein_table$uniprot_gn = protein_table$Row.Names %>%
   lapply('[', 2) %>%
   as.character()
 
+expr_low = expr_high = NULL
+
 for (timepoint_prot in timepoint_prots) {
   # We only need our sample
   protein_table_0021 = protein_table[, c(timepoint_prot, 'uniprot_gn')]
@@ -133,28 +135,35 @@ for (timepoint_prot in timepoint_prots) {
   trc_table_4[, tp_expr_col][is.na(trc_table_4[, tp_expr_col])] = F
   
   
-  change_high_tmp_tpm = order(trc_table_4$targetRNA_TPM, decreasing = T) %>%
+  expr_high_tmp_tpm = order(trc_table_4$targetRNA_TPM, decreasing = T) %>%
     .[1:100] %>%
     trc_table_4[., tp_expr_col] %>%
     sum()
 
-  change_low_tmp_tpm = order(trc_table_4$targetRNA_TPM, decreasing = F) %>%
+  expr_low_tmp_tpm = order(trc_table_4$targetRNA_TPM, decreasing = F) %>%
     .[1:100] %>%
     trc_table_4[, tp_expr_col][.] %>%
     sum()
   
-  change_high_tmp_trc = order(trc_table_4$TRC, decreasing = T) %>%
+  expr_high_tmp_trc = order(trc_table_4$TRC, decreasing = T) %>%
     .[1:100] %>%
     trc_table_4[, tp_expr_col][.] %>%
     sum()
   
-  change_low_tmp_trc = order(trc_table_4$TRC, decreasing = F) %>%
+  expr_low_tmp_trc = order(trc_table_4$TRC, decreasing = F) %>%
     .[1:100] %>%
     trc_table_4[, tp_expr_col][.] %>%
     sum()
   
-  change_low_tmp = change_low_tmp_trc - change_low_tmp_tpm
-  change_high_tmp = change_high_tmp_trc - change_high_tmp_tpm
+  expr_low = rbind(expr_low, 
+                   c(expr_low_tmp_trc, timepoint_prot, 'TRC'), 
+                   c(expr_low_tmp_tpm, timepoint_prot, 'TPM'))
+  expr_high = rbind(expr_high, 
+                    c(expr_high_tmp_trc, timepoint_prot, 'TRC'), 
+                    c(expr_high_tmp_tpm, timepoint_prot, 'TPM'))
+  
+  change_low_tmp = expr_low_tmp_trc - expr_low_tmp_tpm
+  change_high_tmp = expr_high_tmp_trc - expr_high_tmp_tpm
   
   change_low = change_low %>% 
     rbind(c(change_low_tmp, timepoint_prot))
@@ -174,22 +183,45 @@ for (timepoint_prot in timepoint_prots) {
 setwd("/share/script/hecatos/juantxo/analysis_trc/")
 setwd('proteins_expressed_in_predictive_ranges/plots')
 
+#### Prepare differences for plotting ####
 change_high = as.data.frame(change_high, stringsAsFactors = F)
+change_high[,2] = substr(x = change_high[, 2], start = 10, stop = 15)
 colnames(change_high) = c('TRC_TPM_expressed_proteins_difference',
                           'timepoint_protein')
 change_high[, 1] = as.numeric(change_high[, 1])
 
+
 change_low = as.data.frame(change_low, stringsAsFactors = F)
+change_low[,2] = substr(x = change_low[, 2], start = 10, stop = 15)
 colnames(change_low) = c('TRC_TPM_expressed_proteins_difference',
                           'timepoint_protein')
 change_low[, 1] = as.numeric(change_low[, 1])
 
+#### Prepare expressed values for plotting ####
+
+expr_high = data.frame(expr_high, stringsAsFactors = F)
+expr_low = data.frame(expr_low, stringsAsFactors = F)
+colnames(expr_high) = colnames(expr_low) = c("proteins_expressed", 
+                                             "sample", "predictor")
+
+png(filename = 'extreme_ends_distribution_differences_top_bottom_genes.png')
+
 par(mfrow = c(1,2))
-barplot(change_high[, 1], names.arg = change_high[, 2], 
-        angle = 45, main = 'High end distribution differences', 
-        xlab = 'Protein timepoint', 
-        ylab = 'Difference in number of expressed proteins')
-barplot(change_low$diff, names.arg = rownames(change_low), 
-        angle = 45, main = 'Low end distribution differences', 
-        xlab = 'Protein timepoint', 
-        ylab = 'Difference in number of expressed proteins')
+
+ggplot(data = expr_high, 
+       mapping = aes(x = sample, 
+                     y = proteins_expressed, 
+                     fill = predictor)) + 
+  geom_col(position = 'dodge') + 
+  scale_fill_grey() +
+  labs(title = 'Expressed proteins of 100 most expressed genes')
+
+ggplot(data = expr_low, 
+       mapping = aes(x = sample, 
+                     y = proteins_expressed, 
+                     fill = predictor)) + 
+  geom_col(position = 'dodge') + 
+  scale_fill_grey() +
+  labs(title = 'Expressed proteins of 100 least expressed genes')
+
+dev.off()
