@@ -49,7 +49,7 @@ change_high = NULL
 #### Get an example TRC sample file ####
 
 setwd('/share/analysis/hecatos/juantxo/Score/output/Output_Run_mrna_SEPT2019/')
-setwd('V3/output/UNTR/TRCscore/')
+setwd('V3/output/UNTR/2019-10-29_16:38:03_UTC/TRCscore/')
 
 files = list.files(pattern = timepoint_pred)
 trc_table = read.table(file = files[1], stringsAsFactors = F) 
