@@ -1,6 +1,5 @@
 source('/share/script/hecatos/juantxo/analysis_trc/functions.R')
-forceLibrary(c('biomaRt', 'ggplot2', 'dplyr'))
-
+forceLibrary(c('biomaRt', 'ggplot2', 'dplyr', 'ggpubr'))
 
 #### Functions ####
 source(file = '/share/script/hecatos/juantxo/analysis_trc/functions.R')
@@ -162,40 +161,10 @@ for (timepoint_prot in timepoint_prots) {
                     c(expr_high_tmp_trc, timepoint_prot, 'TRC'), 
                     c(expr_high_tmp_tpm, timepoint_prot, 'TPM'))
   
-  change_low_tmp = expr_low_tmp_trc - expr_low_tmp_tpm
-  change_high_tmp = expr_high_tmp_trc - expr_high_tmp_tpm
-  
-  change_low = change_low %>% 
-    rbind(c(change_low_tmp, timepoint_prot))
-  colnames(change_low) = c('TRC_TPM_expressed_proteins_difference',
-                           'timepoint_protein')
-  
-  change_high = change_high %>%
-    rbind(c(change_high_tmp, timepoint_prot))
-  colnames(change_high) = c('TRC_TPM_expressed_proteins_difference',
-                           'timepoint_protein')
-  
 }
-
-# rownames(change_high) = substr(x = rownames(change_high), 15, 17)
-# rownames(change_low) = substr(x = rownames(change_low), 15, 17)
 
 setwd("/share/script/hecatos/juantxo/analysis_trc/")
 setwd('proteins_expressed_in_predictive_ranges/plots')
-
-#### Prepare differences for plotting ####
-change_high = as.data.frame(change_high, stringsAsFactors = F)
-change_high[,2] = substr(x = change_high[, 2], start = 10, stop = 15)
-colnames(change_high) = c('TRC_TPM_expressed_proteins_difference',
-                          'timepoint_protein')
-change_high[, 1] = as.numeric(change_high[, 1])
-
-
-change_low = as.data.frame(change_low, stringsAsFactors = F)
-change_low[,2] = substr(x = change_low[, 2], start = 10, stop = 15)
-colnames(change_low) = c('TRC_TPM_expressed_proteins_difference',
-                          'timepoint_protein')
-change_low[, 1] = as.numeric(change_low[, 1])
 
 #### Prepare expressed values for plotting ####
 
@@ -203,6 +172,10 @@ expr_high = data.frame(expr_high, stringsAsFactors = F)
 expr_low = data.frame(expr_low, stringsAsFactors = F)
 colnames(expr_high) = colnames(expr_low) = c("proteins_expressed", 
                                              "sample", "predictor")
+expr_low = expr_low %>%
+  mutate(proteins_expressed = as.numeric(proteins_expressed))
+expr_high = expr_high %>%
+  mutate(proteins_expressed = as.numeric(proteins_expressed))
 
 # par(mfrow = c(1,2))
 
@@ -216,19 +189,64 @@ ggplot(data = expr_high,
 ggsave('extreme_ends_distribution_differences_top_genes.png',
        width = 10, height = 6.45)
 
-png(filename = 'extreme_ends_distribution_differences_bottom_genes.png')
+# png(filename = 'extreme_ends_distribution_differences_bottom_genes.png')
 
-ggplot(data = expr_low, 
-       mapping = aes(x = sample, 
+ggplot(data = expr_high, 
+       mapping = aes(x = predictor, 
                      y = proteins_expressed, 
                      fill = predictor)) + 
-  geom_col(position = 'dodge') + 
+  geom_boxplot(position = 'dodge') + 
   scale_fill_grey() +
   labs(title = 'Expressed proteins of 100 least expressed genes')
 
 ggsave('extreme_ends_distribution_differences_bottom_genes.png', 
        width = 10, height = 6.45)
-# forceLibrary('gridExtra')
-# grid.arrange(plot_top, plot_bottom, ncol = 2)
 
 
+# <<<<<<< HEAD
+# a = merge(expr_high[expr_high$predictor == 'TRC', ], expr_high[expr_high$predictor == 'TPM', ], by = 'sample')
+# b = merge(expr_low[expr_low$predictor == 'TRC', ], expr_low[expr_low$predictor == 'TPM', ], by = 'sample')
+# 
+# colnames(a) = gsub(pattern = '\\.x', replacement = '.TRC', x = colnames(a)) %>%
+#   gsub(pattern = '.y', replacement = '.TPM')
+# 
+# colnames(b) = gsub(pattern = '\\.x', replacement = '.TRC', x = colnames(b)) %>%
+#   gsub(pattern = '.y', replacement = '.TPM')
+ggpaired(data = expr_high, x = 'predictor', y = 'proteins_expressed', id = 'sample',
+         line.size = 0.4, palette = 'jco', fill = 'predictor', 
+         title = 'Number of proteins expressed in the top 100 expressed genes', 
+         xlab = 'Quantification type', ylab = 'Number of genes with expressed protein') + 
+# =======
+# a = merge(expr_high[expr_high$predictor == 'TRC', ], expr_high[expr_high$predictor == 'TPM', ], by = 'sample')
+# b = merge(expr_low[expr_low$predictor == 'TRC', ], expr_low[expr_low$predictor == 'TPM', ], by = 'sample')
+# 
+# colnames(a) = gsub(pattern = '\\.x', replacement = '.TRC', x = colnames(a)) %>%
+#   gsub(pattern = '.y', replacement = '.TPM')
+# 
+# colnames(b) = gsub(pattern = '\\.x', replacement = '.TRC', x = colnames(b)) %>%
+#   gsub(pattern = '.y', replacement = '.TPM')
+# ggpaired(a, cond1 = 'proteins_expressed.TRC', cond2 = 'proteins_expressed.TPM', 
+#          line.size = 0.4, 
+#          palette = 'jco') + 
+# # >>>>>>> 186c46f87d5ec0a07cdac734e4cdc32ad9cad645
+#   stat_compare_means(paired = T, label.x.npc = "center", label.y.npc = "top")
+
+ggsave('boxplot_top_100_genes_expressed_proteins.png')
+
+# <<<<<<< HEAD
+ggpaired(expr_low,  x = 'predictor', y = 'proteins_expressed', id = 'sample',
+         line.size = 0.4, palette = 'jco', fill = 'predictor', 
+         title = 'Number of proteins expressed in the top 100 expressed genes', 
+         xlab = 'Quantification type', ylab = 'Number of genes with expressed protein') + 
+  stat_compare_means(paired = T, label.x.npc = "left", label.y.npc = "bottom")
+
+ggsave('boxplot_bottom_100_genes_expressed_proteins.png')
+# expr_high %>% group_by(predictor) # %>% mutate(group2 = 1:n())
+# =======
+# ggpaired(b, cond1 = 'proteins_expressed.TRC', cond2 = 'proteins_expressed.TPM', 
+#          line.size = 0.4, 
+#          palette = 'jco') + 
+#   stat_compare_means(paired = T, label.x.npc = "left", label.y.npc = "bottom")
+# 
+# ggsave('boxplot_bottom_100_genes_expressed_proteins.png')
+# >>>>>>> 186c46f87d5ec0a07cdac734e4cdc32ad9cad645
