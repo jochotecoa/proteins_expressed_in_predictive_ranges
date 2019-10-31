@@ -204,9 +204,7 @@ expr_low = data.frame(expr_low, stringsAsFactors = F)
 colnames(expr_high) = colnames(expr_low) = c("proteins_expressed", 
                                              "sample", "predictor")
 
-png(filename = 'extreme_ends_distribution_differences_top_bottom_genes.png')
-
-par(mfrow = c(1,2))
+# par(mfrow = c(1,2))
 
 ggplot(data = expr_high, 
        mapping = aes(x = sample, 
@@ -215,6 +213,10 @@ ggplot(data = expr_high,
   geom_col(position = 'dodge') + 
   scale_fill_grey() +
   labs(title = 'Expressed proteins of 100 most expressed genes')
+ggsave('extreme_ends_distribution_differences_top_genes.png',
+       width = 10, height = 6.45)
+
+png(filename = 'extreme_ends_distribution_differences_bottom_genes.png')
 
 ggplot(data = expr_low, 
        mapping = aes(x = sample, 
@@ -224,4 +226,9 @@ ggplot(data = expr_low,
   scale_fill_grey() +
   labs(title = 'Expressed proteins of 100 least expressed genes')
 
-dev.off()
+ggsave('extreme_ends_distribution_differences_bottom_genes.png', 
+       width = 10, height = 6.45)
+# forceLibrary('gridExtra')
+# grid.arrange(plot_top, plot_bottom, ncol = 2)
+
+
