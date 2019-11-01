@@ -202,38 +202,13 @@ ggplot(data = expr_high,
 ggsave('extreme_ends_distribution_differences_bottom_genes.png', 
        width = 10, height = 6.45)
 
-
-# <<<<<<< HEAD
-# a = merge(expr_high[expr_high$predictor == 'TRC', ], expr_high[expr_high$predictor == 'TPM', ], by = 'sample')
-# b = merge(expr_low[expr_low$predictor == 'TRC', ], expr_low[expr_low$predictor == 'TPM', ], by = 'sample')
-# 
-# colnames(a) = gsub(pattern = '\\.x', replacement = '.TRC', x = colnames(a)) %>%
-#   gsub(pattern = '.y', replacement = '.TPM')
-# 
-# colnames(b) = gsub(pattern = '\\.x', replacement = '.TRC', x = colnames(b)) %>%
-#   gsub(pattern = '.y', replacement = '.TPM')
 ggpaired(data = expr_high, x = 'predictor', y = 'proteins_expressed', id = 'sample',
          line.size = 0.4, palette = 'jco', fill = 'predictor', 
          title = 'Number of proteins expressed in the top 100 expressed genes', 
          xlab = 'Quantification type', ylab = 'Number of genes with expressed protein') + 
-# =======
-# a = merge(expr_high[expr_high$predictor == 'TRC', ], expr_high[expr_high$predictor == 'TPM', ], by = 'sample')
-# b = merge(expr_low[expr_low$predictor == 'TRC', ], expr_low[expr_low$predictor == 'TPM', ], by = 'sample')
-# 
-# colnames(a) = gsub(pattern = '\\.x', replacement = '.TRC', x = colnames(a)) %>%
-#   gsub(pattern = '.y', replacement = '.TPM')
-# 
-# colnames(b) = gsub(pattern = '\\.x', replacement = '.TRC', x = colnames(b)) %>%
-#   gsub(pattern = '.y', replacement = '.TPM')
-# ggpaired(a, cond1 = 'proteins_expressed.TRC', cond2 = 'proteins_expressed.TPM', 
-#          line.size = 0.4, 
-#          palette = 'jco') + 
-# # >>>>>>> 186c46f87d5ec0a07cdac734e4cdc32ad9cad645
-#   stat_compare_means(paired = T, label.x.npc = "center", label.y.npc = "top")
 
 ggsave('boxplot_top_100_genes_expressed_proteins.png')
 
-# <<<<<<< HEAD
 ggpaired(expr_low,  x = 'predictor', y = 'proteins_expressed', id = 'sample',
          line.size = 0.4, palette = 'jco', fill = 'predictor', 
          title = 'Number of proteins expressed in the top 100 expressed genes', 
@@ -241,12 +216,5 @@ ggpaired(expr_low,  x = 'predictor', y = 'proteins_expressed', id = 'sample',
   stat_compare_means(paired = T, label.x.npc = "left", label.y.npc = "bottom")
 
 ggsave('boxplot_bottom_100_genes_expressed_proteins.png')
-# expr_high %>% group_by(predictor) # %>% mutate(group2 = 1:n())
-# =======
-# ggpaired(b, cond1 = 'proteins_expressed.TRC', cond2 = 'proteins_expressed.TPM', 
-#          line.size = 0.4, 
-#          palette = 'jco') + 
-#   stat_compare_means(paired = T, label.x.npc = "left", label.y.npc = "bottom")
-# 
-# ggsave('boxplot_bottom_100_genes_expressed_proteins.png')
-# >>>>>>> 186c46f87d5ec0a07cdac734e4cdc32ad9cad645
+
+
