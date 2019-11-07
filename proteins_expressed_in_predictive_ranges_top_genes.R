@@ -39,6 +39,7 @@ timepoint_prots = c('UNTR_The_002_1', 'UNTR_The_008_1', 'UNTR_The_024_1',
                    'UNTR_The_072_1', 'UNTR_The_168_1', 'UNTR_The_240_1', 
                    'UNTR_The_336_1')
 timepoint_pred = 'UNTR_002_1'
+trc.dir = '11-06'
 
 #### Pre-defined parameters ####
 
@@ -48,7 +49,9 @@ change_high = NULL
 #### Get an example TRC sample file ####
 
 setwd('/share/analysis/hecatos/juantxo/Score/output/Output_Run_mrna_SEPT2019/')
-setwd('V3/output/UNTR/2019-10-29_16:38:03_UTC/TRCscore/')
+setwd('V3/output/UNTR/')
+list.files(pattern = trc.dir) %>% setwd()
+setwd('TRCscore/')
 
 files = list.files(pattern = timepoint_pred)
 trc_table = read.table(file = files[1], stringsAsFactors = F) 
@@ -113,11 +116,8 @@ protein_table = read.table('Hecatos_Cardiac_Px_Untreated_pre-processed_renamed.t
 # As always, format the protein names correctly
 protein_table = protein_table %>% as_tibble() %>% 
   filter(!grepl(':', x = .$Row.Names))
-protein_table$uniprot_gn = protein_table$Row.Names %>%
-  as.character() %>% 
-  strsplit('\\|') %>%
-  lapply('[', 2) %>%
-  as.character()
+protein_table$uniprot_gn = protein_table$Row.Names %>% as.character() %>% 
+  strsplit('\\|') %>% lapply('[', 2) %>% as.character()
 
 expr_low = expr_high = NULL
 
@@ -133,26 +133,15 @@ for (timepoint_prot in timepoint_prots) {
   trc_table_4[, tp_expr_col] = trc_table_4[, timepoint_prot] > 0 
   trc_table_4[, tp_expr_col][is.na(trc_table_4[, tp_expr_col])] = F
   
+  getExtreme100 <- function(pred, decr) {
+    y = order(trc_table_4[, pred], decreasing = decr) %>%
+      .[1:100] %>% trc_table_4[., tp_expr_col] %>% sum()
+  }
   
-  expr_high_tmp_tpm = order(trc_table_4$targetRNA_TPM, decreasing = T) %>%
-    .[1:100] %>%
-    trc_table_4[., tp_expr_col] %>%
-    sum()
-
-  expr_low_tmp_tpm = order(trc_table_4$targetRNA_TPM, decreasing = F) %>%
-    .[1:100] %>%
-    trc_table_4[, tp_expr_col][.] %>%
-    sum()
-  
-  expr_high_tmp_trc = order(trc_table_4$TRC, decreasing = T) %>%
-    .[1:100] %>%
-    trc_table_4[, tp_expr_col][.] %>%
-    sum()
-  
-  expr_low_tmp_trc = order(trc_table_4$TRC, decreasing = F) %>%
-    .[1:100] %>%
-    trc_table_4[, tp_expr_col][.] %>%
-    sum()
+  expr_high_tmp_tpm = getExtreme100('targetRNA_TPM', T)
+  expr_low_tmp_tpm = getExtreme100('targetRNA_TPM', F)
+  expr_high_tmp_trc = getExtreme100('TRC', T)
+  expr_low_tmp_trc = getExtreme100('TRC', F)
   
   expr_low = rbind(expr_low, 
                    c(expr_low_tmp_trc, timepoint_prot, 'TRC'), 
@@ -185,8 +174,8 @@ ggplot(data = expr_high,
                      fill = predictor)) + 
   geom_col(position = 'dodge') + 
   scale_fill_grey() +
-  labs(title = 'Expressed proteins of 100 most expressed genes')
-ggsave('extreme_ends_distribution_differences_top_genes.png',
+  labs(title = 'Expressed proteins of 100 most expressed genes') +
+  ggsave('extreme_ends_distribution_differences_top_genes.png',
        width = 10, height = 6.45)
 
 # png(filename = 'extreme_ends_distribution_differences_bottom_genes.png')
@@ -197,24 +186,21 @@ ggplot(data = expr_high,
                      fill = predictor)) + 
   geom_boxplot(position = 'dodge') + 
   scale_fill_grey() +
-  labs(title = 'Expressed proteins of 100 least expressed genes')
-
-ggsave('extreme_ends_distribution_differences_bottom_genes.png', 
+  labs(title = 'Expressed proteins of 100 least expressed genes') + 
+  ggsave('extreme_ends_distribution_differences_bottom_genes.png', 
        width = 10, height = 6.45)
 
 ggpaired(data = expr_high, x = 'predictor', y = 'proteins_expressed', id = 'sample',
          line.size = 0.4, palette = 'jco', fill = 'predictor', 
          title = 'Number of proteins expressed in the top 100 expressed genes', 
          xlab = 'Quantification type', ylab = 'Number of genes with expressed protein') + 
-
-ggsave('boxplot_top_100_genes_expressed_proteins.png')
+  ggsave('boxplot_top_100_genes_expressed_proteins.png')
 
 ggpaired(expr_low,  x = 'predictor', y = 'proteins_expressed', id = 'sample',
          line.size = 0.4, palette = 'jco', fill = 'predictor', 
-         title = 'Number of proteins expressed in the top 100 expressed genes', 
+         title = 'Number of proteins expressed in the bottom 100 expressed genes', 
          xlab = 'Quantification type', ylab = 'Number of genes with expressed protein') + 
-  stat_compare_means(paired = T, label.x.npc = "left", label.y.npc = "bottom")
-
-ggsave('boxplot_bottom_100_genes_expressed_proteins.png')
+  stat_compare_means(paired = T, label.x.npc = "left", label.y.npc = "top") +
+  ggsave('boxplot_bottom_100_genes_expressed_proteins.png')
 
 
