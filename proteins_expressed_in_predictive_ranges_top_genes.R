@@ -39,7 +39,7 @@ timepoint_prots = c('UNTR_The_002_1', 'UNTR_The_008_1', 'UNTR_The_024_1',
                    'UNTR_The_072_1', 'UNTR_The_168_1', 'UNTR_The_240_1', 
                    'UNTR_The_336_1')
 timepoint_pred = 'UNTR_002_1'
-trc.dir = '11-06'
+trc.dir = '2019-11-09'
 
 #### Pre-defined parameters ####
 
