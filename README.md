@@ -15,23 +15,58 @@ Key features of the analysis:
 ## Prerequisites
 
 The scripts require R and the following libraries:
+- `optparse`
 - `biomaRt`
 - `ggplot2`
 
+You can install these packages using:
+```R
+install.packages(c("optparse", "ggplot2"))
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("biomaRt")
+```
+
 ## Project Structure
 
-- `proteins_expressed_in_predictive_ranges.R`: Initial version of the analysis script.
-- `proteins_expressed_in_predictive_rangesv2.R`: Updated version with improved parameterization for different timepoints and support for analyzing non-expressed transcripts.
+- `proteins_expressed_in_predictive_ranges.R`: Initial legacy version of the analysis script.
+- `proteins_expressed_in_predictive_rangesv2.R`: Professional command-line version with parameterization, error handling, and modular functions.
 - `plots/`: Directory containing generated visualization plots (PNG format).
 
 ## Usage
 
-The scripts are configured with several parameters at the top:
+The `v2` script has been refactored into a professional command-line tool. You can now pass parameters directly from the terminal without editing the R script.
 
-- `prot_dupl_filt`: Boolean to filter out duplicate proteins.
-- `enst_dupl_filt`: Boolean to filter out duplicate transcripts.
-- `normalize`: Boolean to normalize TRC and TPM values by their medians.
-- `non_expressed`: (v2 only) If `TRUE`, the script counts transcripts that do *not* result in expressed proteins.
-- `timepoint_prot` & `timepoint_pred`: (v2 only) Specify the identifiers for the proteomics and prediction samples respectively.
+### Basic Execution
 
-To run the analysis, ensure the file paths for the input TRC and protein tables are correctly set in the script, and then execute it in an R environment.
+```bash
+Rscript proteins_expressed_in_predictive_rangesv2.R \
+  --trc_file path/to/trc_file.txt \
+  --protein_file path/to/protein_file.txt
+```
+
+### Options
+
+| Argument | Description | Default |
+| :--- | :--- | :--- |
+| `-t`, `--trc_file` | Path to the TRC/TPM transcript file | **Required** |
+| `-p`, `--protein_file` | Path to the Proteomics expression file | **Required** |
+| `-o`, `--out_dir` | Output directory for plots | `plots/` |
+| `--timepoint_prot` | Timepoint column name in the proteomics file | `UNTR_The_008_1` |
+| `--timepoint_pred` | Timepoint identifier for the predictors | `UNTR_008_1` |
+| `--normalize` | Normalize TRC and TPM values by their medians | `FALSE` |
+| `--non_expressed` | Count non-expressed transcripts instead of expressed proteins | `FALSE` |
+| `--disable_prot_dupl_filt`| Disable filtering of duplicate proteins | Filter enabled |
+| `--disable_enst_dupl_filt`| Disable filtering of duplicate transcripts | Filter enabled |
+
+### Example with advanced options
+
+```bash
+Rscript proteins_expressed_in_predictive_rangesv2.R \
+  --trc_file data/UNTR_TRC_sample.txt \
+  --protein_file data/Hecatos_Cardiac_Px_Untreated_pre-processed_renamed.txt \
+  --timepoint_prot UNTR_The_002_1 \
+  --timepoint_pred UNTR_002_1 \
+  --normalize \
+  --out_dir my_custom_plots
+```
